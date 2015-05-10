@@ -48,38 +48,47 @@ var (
 	tinderClient *tinder.Tinder
 	profile TinderProfile
 	profileMut sync.Mutex
+
+	// gui
+	g *gocui.Gui
+	backgroundView *gocui.View
+	profilePictureView *gocui.View
+	swipeLeftView *gocui.View
+	swipeRightView *gocui.View
+	infoView *gocui.View
 )
 
 func layout(g *gocui.Gui) error {
+	var err error
 	maxX, maxY := g.Size()
-	if _, err := g.SetView("background", 0, 0, maxX, maxY); err != nil {
+	if backgroundView, err = g.SetView("background", 0, 0, maxX, maxY); err != nil {
 		if err != gocui.ErrorUnkView {
 			return err
 		}
 	}
-    if profilePicture, err := g.SetView("profilePicture", 1, 1, maxX-1, maxY-5); err != nil {
+    if profilePictureView, err = g.SetView("profilePicture", 1, 1, maxX-1, maxY-5); err != nil {
         if err != gocui.ErrorUnkView {
             return err
         }
-        fmt.Fprintln(profilePicture, "example")
+		fmt.Fprintln(profilePictureView, "Loading...")
     }
-	if swipeLeft, err := g.SetView("swipeLeft", 6, maxY-4, maxX/2-5, maxY-1); err != nil {
+	if swipeLeftView, err = g.SetView("swipeLeft", 6, maxY-4, maxX/2-5, maxY-1); err != nil {
 		if err != gocui.ErrorUnkView {
 			return err
 		}
-		fmt.Fprintln(swipeLeft, "X")
+		fmt.Fprintln(swipeLeftView, "X")
 	}
-	if swipeRight, err := g.SetView("swipeRight", maxX-(maxX/2-5), maxY-4, maxX-6, maxY-1); err != nil {
+	if swipeRightView, err = g.SetView("swipeRight", maxX-(maxX/2-5), maxY-4, maxX-6, maxY-1); err != nil {
 		if err != gocui.ErrorUnkView {
 			return err
 		}
-		fmt.Fprintln(swipeRight, "<3")
+		fmt.Fprintln(swipeRightView, "<3")
 	}
-	if info, err := g.SetView("info", maxX/2-4, maxY-4, maxX/2+4, maxY-1); err != nil {
+	if infoView, err = g.SetView("info", maxX/2-4, maxY-4, maxX/2+4, maxY-1); err != nil {
 		if err != gocui.ErrorUnkView {
 			return err
 		}
-		fmt.Fprintln(info, "i")
+		fmt.Fprintln(infoView, "i")
 	}
     return nil
 }
@@ -89,7 +98,7 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func runGUI() error {
-	g := gocui.NewGui()
+	g = gocui.NewGui()
 	if err := g.Init(); err != nil {
 		return err
 	}
@@ -108,12 +117,12 @@ func runGUI() error {
 	return nil
 }
 
-func pollTinder(client *tinder.Tinder, profile *TinderProfile) {
+func pollTinder(updateGUI chan struct{}, client *tinder.Tinder, profile *TinderProfile) {
 	for _ = range time.Tick(5 * time.Second) {
 		profileMut.Lock()
 		resp, err := client.GetUpdates()
 		if err != nil {
-			fmt.Println("Error polling:", err)
+			fmt.Fprintln(os.Stderr, "Error polling:", err)
 		}
 		matches := make([]*Match, len(resp.Matches))
 		for i, match := range resp.Matches {
@@ -147,6 +156,16 @@ func pollTinder(client *tinder.Tinder, profile *TinderProfile) {
 		}
 		profile.Matches = matches
 		profileMut.Unlock()
+
+		updateGUI<-struct{}{}
+	}
+}
+
+func updateGUI(updateGUI chan struct{}) {
+	for _ = range updateGUI {
+		profilePictureView.Clear()
+		fmt.Fprintln(profilePictureView, profile.Matches[0].Person.Name)
+		g.Flush()
 	}
 }
 
@@ -166,7 +185,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	go pollTinder(tinderClient, &profile)
+	updateGUIChan := make(chan struct{})
+
+	go pollTinder(updateGUIChan, tinderClient, &profile)
+	go updateGUI(updateGUIChan)
 
 	if err := runGUI(); err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
