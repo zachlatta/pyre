@@ -60,6 +60,30 @@ var (
 	infoView *gocui.View
 )
 
+func showMatched(g *gocui.Gui, v *gocui.View) error {
+	maxX, maxY := g.Size()
+	if v, err := g.SetView("matched", maxX/2-8, maxY/2, maxX/2+8, maxY/2+2); err != nil {
+		if err != gocui.ErrorUnkView {
+			return err
+		}
+		fmt.Fprintln(v, "Matched!")
+		if err := g.SetCurrentView("matched"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func hideMatched(g *gocui.Gui, v *gocui.View) error {
+	if err := g.DeleteView("matched"); err != nil {
+		return err
+	}
+	if err := g.SetCurrentView("background"); err != nil {
+		return err
+	}
+	return nil
+}
+
 func swipeLeft(g *gocui.Gui, v *gocui.View) error {
 	if err := tinderClient.Pass(profile.Recommendations[0].ID); err != nil {
 		fmt.Println(err)
@@ -70,11 +94,16 @@ func swipeLeft(g *gocui.Gui, v *gocui.View) error {
 }
 
 func swipeRight(g *gocui.Gui, v *gocui.View) error {
-	_, err := tinderClient.Like(profile.Recommendations[0].ID)
+	matched, err := tinderClient.Like(profile.Recommendations[0].ID)
 	if err != nil {
 		fmt.Println(err)
 	}
 	profile.Recommendations = profile.Recommendations[1:]
+
+	if matched {
+		showMatched(g, v)
+	}
+	
 	updateGUIChan<-struct{}{}
 	return nil
 }
@@ -127,6 +156,9 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 	if err := g.SetKeybinding("", 'l', gocui.ModNone, swipeRight); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("", 'j', gocui.ModNone, hideMatched); err != nil {
 		return err
 	}
 	return nil
@@ -212,10 +244,16 @@ func updateGUI(updateGUI chan struct{}) {
 		profilePictureView.Clear()
 		if len(profile.Recommendations) > 0 {
 			topRec := profile.Recommendations[0]
-			fmt.Fprintf(profilePictureView, `Name: %s
+			fmt.Fprintf(profilePictureView, `    ___
+   /   \
+  | o o |
+   \_=_/
+
+Name: %s
 Distance (mi): %d
+Age: %d
 ----------------
-%s`, topRec.Name, topRec.DistanceInMiles, topRec.Bio)
+%s`, topRec.Name, topRec.DistanceInMiles, time.Now().Sub(topRec.Birth)/time.Hour/24/365, topRec.Bio)
 		} else {
 			fmt.Fprintln(profilePictureView, "There's no one new around you.")
 		}
