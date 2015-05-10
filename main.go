@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/jroimartin/gocui"
-	"github.com/norwack/tinder"
+	"github.com/zachlatta/tinder"
 )
 
 type Message struct {
@@ -41,6 +41,7 @@ type Match struct {
 
 type TinderProfile struct {
 	Matches []*Match
+	Recommendations []tinder.Recommendation
 }
 
 var (
@@ -48,6 +49,7 @@ var (
 	tinderClient *tinder.Tinder
 	profile TinderProfile
 	profileMut sync.Mutex
+	updateGUIChan chan struct{}
 
 	// gui
 	g *gocui.Gui
@@ -57,6 +59,25 @@ var (
 	swipeRightView *gocui.View
 	infoView *gocui.View
 )
+
+func swipeLeft(g *gocui.Gui, v *gocui.View) error {
+	if err := tinderClient.Pass(profile.Recommendations[0].ID); err != nil {
+		fmt.Println(err)
+	}
+	profile.Recommendations = profile.Recommendations[1:]
+	updateGUIChan<-struct{}{}
+	return nil
+}
+
+func swipeRight(g *gocui.Gui, v *gocui.View) error {
+	_, err := tinderClient.Like(profile.Recommendations[0].ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	profile.Recommendations = profile.Recommendations[1:]
+	updateGUIChan<-struct{}{}
+	return nil
+}
 
 func layout(g *gocui.Gui) error {
 	var err error
@@ -70,6 +91,7 @@ func layout(g *gocui.Gui) error {
         if err != gocui.ErrorUnkView {
             return err
         }
+		profilePictureView.Wrap = true
 		fmt.Fprintln(profilePictureView, "Loading...")
     }
 	if swipeLeftView, err = g.SetView("swipeLeft", 6, maxY-4, maxX/2-5, maxY-1); err != nil {
@@ -97,6 +119,19 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.Quit
 }
 
+func keybindings(g *gocui.Gui) error {
+	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("", 'h', gocui.ModNone, swipeLeft); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("", 'l', gocui.ModNone, swipeRight); err != nil {
+		return err
+	}
+	return nil
+}
+
 func runGUI() error {
 	g = gocui.NewGui()
 	if err := g.Init(); err != nil {
@@ -104,8 +139,7 @@ func runGUI() error {
 	}
 	defer g.Close()
 	g.SetLayout(layout)
-	if err := g.SetKeybinding(
-		"", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	if err := keybindings(g); err != nil {
 		return err
 	}
 	g.SelBgColor = gocui.ColorGreen
@@ -155,6 +189,18 @@ func pollTinder(updateGUI chan struct{}, client *tinder.Tinder, profile *TinderP
 			matches[i].Messages = messages
 		}
 		profile.Matches = matches
+
+		if len(profile.Recommendations) == 0 {
+			recsResp, err := client.GetRecommendations()
+			if err != nil {
+				if err != tinder.RecsExhausted && err != tinder.RecsTimeout {
+					fmt.Fprintln(os.Stderr, "Error polling:", err)
+				}
+			} else {
+				profile.Recommendations = recsResp.Results
+			}
+		}
+
 		profileMut.Unlock()
 
 		updateGUI<-struct{}{}
@@ -164,7 +210,15 @@ func pollTinder(updateGUI chan struct{}, client *tinder.Tinder, profile *TinderP
 func updateGUI(updateGUI chan struct{}) {
 	for _ = range updateGUI {
 		profilePictureView.Clear()
-		fmt.Fprintln(profilePictureView, profile.Matches[0].Person.Name)
+		if len(profile.Recommendations) > 0 {
+			topRec := profile.Recommendations[0]
+			fmt.Fprintf(profilePictureView, `Name: %s
+Distance (mi): %d
+----------------
+%s`, topRec.Name, topRec.DistanceInMiles, topRec.Bio)
+		} else {
+			fmt.Fprintln(profilePictureView, "There's no one new around you.")
+		}
 		g.Flush()
 	}
 }
@@ -185,7 +239,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	updateGUIChan := make(chan struct{})
+	updateGUIChan = make(chan struct{})
 
 	go pollTinder(updateGUIChan, tinderClient, &profile)
 	go updateGUI(updateGUIChan)
