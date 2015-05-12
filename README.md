@@ -4,7 +4,7 @@ Pyre is a command-line interface for Tinder built at the [2015 Stupid Shit No
 One Needs & Terrible Ideas Hackathon](https://stupidhackathon.github.io/) in San
 Francisco.
 
-![](demo.jpg)
+[![](demo.jpg)](https://twitter.com/selenalarson/status/597545473189093378)
 
 ## Installation
 
