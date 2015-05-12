@@ -25,6 +25,8 @@ Get your Tinder access token
 
 #### Keybindings
 
+Pyre has vi keybindings, of course.
+
 | Action               | Key |
 |----------------------|-----|
 | Like                 | `l` |
