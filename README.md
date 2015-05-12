@@ -27,11 +27,11 @@ Get your Tinder access token
 
 Pyre has vi keybindings, of course.
 
-| Action               | Key |
-|----------------------|-----|
-| Like                 | `l` |
-| Pass                 | `h` |
-| Dismiss confirmation | `j` |
+| Action        | Key |
+|---------------|-----|
+| Like          | `l` |
+| Pass          | `h` |
+| Dismiss popup | `j` |
 
 ## License
 
