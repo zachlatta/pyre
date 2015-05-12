@@ -262,8 +262,8 @@ Age: %d
 }
 
 func main() {
-	flag.StringVar(&facebookUserID, "fb_user_id", "", "facebook user id")
-	flag.StringVar(&facebookToken, "fb_token", "", "facebook token")
+	flag.StringVar(&facebookUserID, "id", "", "facebook user id")
+	flag.StringVar(&facebookToken, "token", "", "access token")
 	flag.Parse()
 
 	if flag.NArg() == flag.NFlag() {
