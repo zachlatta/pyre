@@ -33,6 +33,13 @@ Pyre has vi keybindings, of course.
 | Pass          | `h` |
 | Dismiss popup | `j` |
 
+## Credits
+
+Thank you to [norwack](https://github.com/norwack) for building the
+[original Tinder library](https://github.com/norwack/tinder) that I
+[forked](https://github.com/zachlatta/tinder) and made a few minor changes to
+for Pyre.
+
 ## License
 
 The MIT License (MIT)
