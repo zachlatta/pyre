@@ -19,10 +19,8 @@ grab the latest binary for your system.
     $ pyre -token="insert access token" -id="insert facebook user id"
 
 Get your Facebook ID
-[here](http://findmyfacebookid.com/).
-Get your Tinder access token
-[here](https://www.facebook.com/dialog/oauth?client_id=464891386855067&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=basic_info,email,pub
-lic_profile,user_about_me,user_activities,user_birthday,user_education_history,user_friends,user_interests,user_likes,user_location,user_photos,user_relationship_details&response_type=token)   
+[here](http://findmyfacebookid.com/). Get your Tinder access token
+[here](https://www.facebook.com/dialog/oauth?client_id=464891386855067&redirect_uri=https://www.facebook.com/connect/login_success.html&scope=basic_info,email,public_profile,user_about_me,user_activities,user_birthday,user_education_history,user_friends,user_interests,user_likes,user_location,user_photos,user_relationship_details&response_type=token)   
 
 Once there, go to your browser's developer console, click to the Network tab, and
 go to the above URL again. After the second traversal, you should see two network
